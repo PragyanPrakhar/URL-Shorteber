@@ -10,8 +10,6 @@ const urlSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
-            index:true,
-            unique: true,
         },
         clickCount: {
             type: Number,
@@ -22,5 +20,6 @@ const urlSchema = new mongoose.Schema(
         timestamps: true,
     },
 );
+urlSchema.index({ shortUrl: 1 }, { unique: true });
 const urlModel = mongoose.model("Url", urlSchema);
 module.exports = urlModel;
