@@ -3,11 +3,13 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const connectDB = require("./config/db");
 const app = require("./app");
+const {connectRedis , redisClient}=require("./config/redis");
 
 const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
     await connectDB();
+    await connectRedis();
 
     const server = app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
