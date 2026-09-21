@@ -1,6 +1,7 @@
 const express = require("express");
 
 const urlRoutes = require("./routes/url.routes");
+const cacheRoutes = require("./routes/cache.routes");
 
 const app = express();
 
@@ -11,5 +12,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/urls", urlRoutes);
+app.use("/internal/cache", cacheRoutes);
 
 module.exports = app;
