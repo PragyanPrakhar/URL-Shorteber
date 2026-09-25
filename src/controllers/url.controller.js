@@ -35,7 +35,7 @@ const redirectToOriginalUrl = async (req, res) => {
     try {
         const { shortCode } = req.params;
 
-        const url = await getUrlByShortCode(shortCode);
+        const url = await getUrlByShortCode(shortCode, 0);
 
         if (!url) {
             return res.status(404).json({
