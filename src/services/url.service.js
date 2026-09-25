@@ -25,18 +25,17 @@ const createShortUrl = async (originalUrl) => {
 };
 
 const getUrlByShortCode = async (shortCode) => {
-    try {
-        // Generate cache key
-        const cacheKey = `shortUrl:${shortCode}`;
+    const cacheKey = `shortUrl:${shortCode}`;
+    // 1. Try Redis GET
+    let cachedUrl = null;
 
-        // Measure Redis GET latency
+    try {
         const startTime = performance.now();
 
-        const cachedUrl = await redisClient.get(cacheKey);
+        cachedUrl = await redisClient.get(cacheKey);
 
         const redisLatency = performance.now() - startTime;
 
-        // Record Redis latency
         recordRedisLatency(redisLatency);
 
         if (cachedUrl) {
@@ -54,27 +53,56 @@ const getUrlByShortCode = async (shortCode) => {
         console.log(
             `Cache MISS | shortCode=${shortCode} | Redis latency=${redisLatency.toFixed(2)}ms`,
         );
+    } catch (error) {
+        // Redis failed, but Redis is only a cache.
+        // We can still use MongoDB.
 
-        // Cache miss → MongoDB
-        const url = await Url.findOne({
+        console.error(
+            `Redis GET failed | shortCode=${shortCode}`,
+            error.message,
+        );
+    }
+
+    // 2. MongoDB
+
+    let url;
+
+    try {
+        url = await Url.findOne({
             shortUrl: shortCode,
         }).lean();
-
-        if (!url) {
-            return null;
-        }
-
-        // Store result in Redis
-        await redisClient.set(cacheKey, JSON.stringify(url), {
-            EX: 3600,
-        });
-
-        return url;
     } catch (error) {
-        console.log("Error fetching URL by short code:", error);
+        // MongoDB is our source of truth.
+        // If MongoDB fails, we cannot continue.
+
+        console.error(
+            `MongoDB lookup failed | shortCode=${shortCode}`,
+            error.message,
+        );
 
         throw error;
     }
+
+    if (!url) {
+        return null;
+    }
+    // 3. Try Redis SET
+    try {
+        await redisClient.set(cacheKey, JSON.stringify(url), {
+            EX: 3600,
+        });
+    } catch (error) {
+        // Redis failed while trying to populate the cache.
+        // The URL was already obtained from MongoDB,
+        // so we can still return it to the client.
+
+        console.error(
+            `Redis SET failed | shortCode=${shortCode}`,
+            error.message,
+        );
+    }
+
+    return url;
 };
 
 module.exports = {
